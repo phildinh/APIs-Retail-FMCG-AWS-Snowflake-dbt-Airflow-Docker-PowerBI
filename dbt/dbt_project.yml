@@ -14,7 +14,7 @@ models:
   ecommerce_pipeline:
     staging:
       +schema: STAGING
-      +materialized: view
+      +materialized: table
     marts:
       +schema: MARTS
-      +materialized: table
+      +materialized: view
