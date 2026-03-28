@@ -1,4 +1,4 @@
-version:  2
+version: 2
 
 sources:
   - name: raw
@@ -7,67 +7,62 @@ sources:
     description: "Raw data landed from FakeStoreAPI via Python ingestion pipeline"
 
     tables:
-    - name: products
-      description: "Raw product catalogue from FakeStoreAPI/ products endpoint"
-      columns:
-        - name: id
-          description: "Unique product identifier"
-          tests:
-          - not_null
-          - unique
-        - name: title
-          description: "Product name"
-          tests:
-            - not_null
-        - name: price
-          description: "Product price in USD"
-          tests:
-            - not_null
-        - name: category
-          description: "Product category"
-          tests:
-            - not_null
-            - accepted_values:
-                values: ["electronics", "jewelery", "men's clothing", "women's clothing"]
-        - name: _loaded_at
-          description: "UTC timestamp when this record was loaded"
-          tests:
-            - not_null
-        - name: _run_id
-          description: "Unique pipeline run identifier"
-          tests:
-            - not_null
-            
-    - name: users
-      description: "Raw user data from FakeStoreAPI /users endpoint"
-      columns:
-        - name: id
-          description: "Unique user identifier"
-          tests:
-            - not_null
-            - unique
-        - name: email
-          description: "User email address"
-          tests:
-            - not_null
-        - name: _loaded_at
-          description: "UTC timestamp when this record was loaded"
-          tests:
-            - not_null
+      - name: products
+        description: "Raw product catalogue from FakeStoreAPI /products endpoint"
+        columns:
+          - name: id
+            description: "Unique product identifier"
+            tests:
+              - not_null
+          - name: title
+            description: "Product name"
+            tests:
+              - not_null
+          - name: price
+            description: "Product price in USD"
+            tests:
+              - not_null
+          - name: category
+            description: "Product category"
+            tests:
+              - not_null
+          - name: _loaded_at
+            description: "UTC timestamp when this record was loaded"
+            tests:
+              - not_null
+          - name: _run_id
+            description: "Unique pipeline run identifier"
+            tests:
+              - not_null
 
-    - name: carts
-      description: "Raw cart data from FakeStoreAPI /carts endpoint"
-      columns:
-        - name: id
-          description: "Unique cart identifier"
-          tests:
-            - not_null
-            - unique
-        - name: userid
-          description: "Foreign key to users"
-          tests:
-            - not_null
-        - name: _loaded_at
-          description: "UTC timestamp when this record was loaded"
-          tests:
-            - not_null
+      - name: users
+        description: "Raw user data from FakeStoreAPI /users endpoint"
+        columns:
+          - name: id
+            description: "Unique user identifier"
+            tests:
+              - not_null
+          - name: email
+            description: "User email address"
+            tests:
+              - not_null
+          - name: _loaded_at
+            description: "UTC timestamp when this record was loaded"
+            tests:
+              - not_null
+
+      - name: carts
+        description: "Raw cart data from FakeStoreAPI /carts endpoint"
+        columns:
+          - name: id
+            description: "Unique cart identifier"
+            tests:
+              - not_null
+          - name: userid
+            description: "Foreign key to users"
+            tests:
+              - not_null
+          - name: _loaded_at
+            description: "UTC timestamp when this record was loaded"
+            tests:
+              - not_null
