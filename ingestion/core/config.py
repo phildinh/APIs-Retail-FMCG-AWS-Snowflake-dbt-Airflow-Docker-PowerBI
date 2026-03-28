@@ -1,33 +1,34 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
 class Settings(BaseSettings):
 
     # Snowflake
-    snowflake_account: str
-    snowflake_user: str
-    snowflake_password: str
-    snowflake_warehouse: str
-    snowflake_database: str
-    snowflake_role: str
-    snowflake_schema: str
+    snowflake_account:      str
+    snowflake_user:         str
+    snowflake_password:     str
+    snowflake_warehouse:    str
+    snowflake_database:     str
+    snowflake_role:         str
+    snowflake_schema:       str
 
     # AWS
-    aws_access_key_id: str
-    aws_secret_access_key: str
-    aws_region: str
-    aws_bucket_name: str
+    aws_access_key_id:      str
+    aws_secret_access_key:  str
+    aws_region:             str
+    aws_bucket_name:        str
 
     # FakeStoreAPI
-    fakestore_base_url: str
+    fakestore_base_url:     str
 
     # Pipeline
-    environment: str
-    log_level: str
+    environment:            str
+    log_level:              str
 
-    class Config:
-        env_file = ".env"
+    model_config = SettingsConfigDict(
+        env_file = ".env",
         env_file_encoding = "utf_8"
+    )
 
 @lru_cache
 def get_settings() -> Settings:

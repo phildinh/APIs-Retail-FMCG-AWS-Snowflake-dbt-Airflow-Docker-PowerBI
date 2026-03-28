@@ -64,7 +64,13 @@ Functions:
 - `get_utc_now()`  → current datetime in UTC
 - `get_run_date()` → today's date as YYYY-MM-DD string
 - `format_s3_key(entity, file_format)` → partitioned S3 path
-
+- `enrich_records(entity, data, run_id)` → stamps metadata fields onto every record
+  - `_loaded_at`  — UTC timestamp of extraction
+  - `_source`     — always "fakestoreapi"
+  - `_entity`     — which endpoint the record came from
+  - `_load_date`  — date portion of the run
+  - `_run_id`     — unique ID tying all records from one run together
+  
 S3 key format:
     raw/{entity}/year={yyyy}/month={mm}/day={dd}/{entity}_{timestamp}.json
 

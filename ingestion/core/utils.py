@@ -16,3 +16,19 @@ def format_s3_key(entity: str, file_format: str = "json") -> str:
 def get_run_date() -> str:
     return get_utc_now().strftime("%Y-%m-%d")
 
+def enrich_records(
+        entity: str,
+        data:   list[dict],
+        run_id: str,
+) -> list[dict]:
+    loaded_at = get_utc_now().isoformat()
+    load_date = get_run_date()
+
+    for record in data:
+        record["_loaded_at"] =  loaded_at
+        record["_source"] =     "fakestoreapi"
+        record["_entity"] =     entity
+        record["_load_date"] =  load_date
+        record["_run_id"] =     run_id
+
+    return data
