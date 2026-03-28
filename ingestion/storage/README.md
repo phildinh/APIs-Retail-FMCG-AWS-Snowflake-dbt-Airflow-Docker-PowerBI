@@ -1,7 +1,8 @@
 # ingestion/storage
 
 Handles all persistence concerns for the ingestion layer.
-Responsible for managing connections and writing raw data to S3.
+Responsible for managing connections, writing raw data to S3,
+and copying that data into Snowflake RAW schema.
 Nothing in this folder knows about the API or business logic —
 it only knows how to store data reliably.
 
@@ -44,7 +45,38 @@ Usage:
     from ingestion.storage.load import load_to_s3
 
     s3_key = load_to_s3(entity="products", data=[{...}, {...}])
-    # returns: raw/products/year=2024/month=01/day=15/products_20240115_113200.json
+    # returns: raw/products/year=2026/month=03/day=28/products_20260328_120002.json
+
+---
+
+### copy_into_snowflake.py
+Copies JSON files from S3 into Snowflake RAW schema tables.
+
+Provides two functions:
+- `build_copy_query(entity, s3_key)` — builds the COPY INTO SQL for a given entity and S3 path
+- `copy_raw_to_snowflake(s3_keys, run_id)` — iterates over all entities, executes COPY INTO,
+  and returns a dict of `{entity: rows_loaded}`
+
+Supported entities: `products`, `users`, `carts`.
+
+Each entity maps to its RAW table with explicit column-to-JSON-path bindings
+using Snowflake's semi-structured `$1:field::TYPE` syntax.
+Nested objects (`rating`, `name`, `address`, `products`) are cast to VARIANT.
+
+Usage:
+    from ingestion.storage.copy_into_snowflake import copy_raw_to_snowflake
+
+    s3_keys = {
+        "products": "raw/products/year=2026/month=03/day=28/products_20260328_120002.json",
+        "users":    "raw/users/year=2026/month=03/day=28/users_20260328_120003.json",
+        "carts":    "raw/carts/year=2026/month=03/day=28/carts_20260328_120004.json",
+    }
+    results = copy_raw_to_snowflake(s3_keys=s3_keys, run_id="abc-123")
+    # returns: {"products": 20, "users": 10, "carts": 7}
+
+The function reads from the Snowflake external stage `@raw_s3_stage` and
+uses the named file format `raw_json_format` — both must exist in Snowflake
+before this runs (created by `snowflake/create_raw_tables.sql`).
 
 ---
 
@@ -68,6 +100,18 @@ The caller needs to know where the file landed — both for logging
 and for passing the path to Snowflake's COPY INTO command later.
 Returning the key keeps the function useful without adding
 unnecessary coupling between storage and ingestion logic.
+
+**Why does `build_copy_query()` strip the entity prefix from the S3 key?**
+The external stage `@raw_s3_stage` is already rooted at the bucket root.
+The COPY INTO path must be relative to the stage, so the leading
+`raw/{entity}/` prefix is removed, leaving only the partition sub-path
+(e.g. `year=2026/month=03/day=28/products_20260328_120002.json`).
+
+**Why `ON_ERROR = 'CONTINUE'`?**
+If a single malformed record exists in the file, the pipeline should not
+halt and leave all other entities unloaded. CONTINUE skips bad rows and
+logs them — the row count returned by COPY INTO reflects only successfully
+loaded rows, making failures visible without blocking the run.
 
 **Why LOADER role for Snowflake?**
 The ingestion layer only needs write access to the RAW schema.
