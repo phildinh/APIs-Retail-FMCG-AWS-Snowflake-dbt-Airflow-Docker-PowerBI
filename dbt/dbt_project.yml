@@ -19,3 +19,7 @@ models:
     marts:
       +schema: MARTS
       +materialized: view
+
+seeds:
+  ecommerce_pipeline:
+    +schema: MARTS
