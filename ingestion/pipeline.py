@@ -1,21 +1,28 @@
 from ingestion.api.extract import FakeStoreExtractor
 from ingestion.storage.load import load_to_s3
 from ingestion.core.logger import get_logger
-from ingestion.core.utils import get_run_date
+from ingestion.core.utils import get_run_date, enrich_records
 from ingestion.core.config import get_settings
+import uuid
 
 logger = get_logger(__name__)
 
 def run_pipeline() -> None:
+    run_id = str(uuid.uuid4())
     run_date = get_run_date()
     settings = get_settings()
-    logger.info(f"Pipeline started - run date: {run_date}")
+    logger.info(f"Pipeline started - run_id: {run_id} run date: {run_date}")
 
     extractor = FakeStoreExtractor()
     results = extractor.extract_all()
 
     s3_keys = {}
     for entity, data in results.items():
+        enriched = enrich_records(
+            entity= entity,
+            data=   data,
+            run_id= run_id
+        )
         logger.info(f"Loading {entity} to S3")
         s3_key = load_to_s3(entity=entity, data=data)
         s3_keys[entity] = s3_key
