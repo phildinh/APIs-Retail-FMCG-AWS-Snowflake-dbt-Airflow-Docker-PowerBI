@@ -263,4 +263,4 @@ something breaks, you know exactly which layer to look at.
 
 ---
 [GitHub](https://github.com/phildinh) ·
-[LinkedIn](https://linkedin.com/in/phildinh)
+[LinkedIn](https://www.linkedin.com/in/phil-dinh)
