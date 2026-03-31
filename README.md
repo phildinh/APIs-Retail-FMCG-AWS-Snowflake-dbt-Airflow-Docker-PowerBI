@@ -35,8 +35,8 @@ FakeStoreAPI → Python (requests + tenacity) → AWS S3 (Hive-partitioned JSON)
 
 ## Project Status
 
-| Phase | Description | Status |
-|---|---|---|
+| Phase | Description | 
+|---|---|
 | 1 | Environment setup — Python, Snowflake, AWS, dbt | 
 | 2 | Ingestion layer — API extract, S3 load, COPY INTO Snowflake | 
 | 3 | pytest test suite — 15 tests across extract + load modules | 
