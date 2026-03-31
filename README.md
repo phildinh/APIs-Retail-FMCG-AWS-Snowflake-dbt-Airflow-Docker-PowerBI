@@ -14,6 +14,7 @@
 ## Overview
 
 An end-to-end retail analytics pipeline built to simulate a production FMCG data engineering workload. Raw transactional data is extracted from a REST API, landed in S3 as Hive-partitioned JSON, loaded into Snowflake via `COPY INTO`, transformed through a dbt medallion architecture (Bronze → Silver → Gold), and served to Power BI via a star schema — all orchestrated by Airflow running in Docker.
+
 ---
 
 ## Architecture
