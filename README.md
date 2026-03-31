@@ -1,266 +1,222 @@
 # Retail FMCG Data Pipeline
 
-A production-grade data pipeline that pulls retail data from an API,
-stores it in AWS, transforms it in Snowflake, and delivers business
-insights through a Power BI dashboard — fully automated and scheduled
-with Apache Airflow.
+**Production-grade ELT pipeline · FakeStoreAPI → S3 → Snowflake → dbt → Airflow · Star schema with SCD Type 2**
 
-**AWS S3 · Snowflake · dbt · Airflow · Docker · Power BI · Python**
-
----
-
-## What does this project do?
-
-Imagine you are running an online retail store. Every day you have
-products being viewed, customers placing orders, and prices changing.
-All of that data is valuable — but only if you can collect it reliably,
-clean it up, and turn it into something a business person can actually
-use to make decisions.
-
-That is exactly what this pipeline does.
-
-It automatically:
-1. Pulls fresh product, customer, and order data from a retail API
-2. Stores the raw data safely in AWS cloud storage
-3. Cleans and organises it in Snowflake data warehouse
-4. Builds analytics-ready tables that answer real business questions
-5. Runs everything on a schedule so the data is always up to date
-
-The end result is a Power BI dashboard where a business analyst can
-open their laptop and immediately see revenue trends, top-selling
-products, and customer behaviour — without waiting for anyone to
-manually pull a report.
+![Python](https://img.shields.io/badge/Python-3.11-blue)
+![Snowflake](https://img.shields.io/badge/Snowflake-Data_Warehouse-teal)
+![dbt](https://img.shields.io/badge/dbt-1.7.19-amber)
+![Airflow](https://img.shields.io/badge/Airflow-2.8.1-purple)
+![AWS](https://img.shields.io/badge/AWS-S3-green)
+![Tests](https://img.shields.io/badge/pytest-15_passing-brightgreen)
 
 ---
 
-## Why did I build this?
+## Overview
 
-I have spent five years working in FMCG and retail analytics. I have
-seen firsthand how much time analysts waste manually downloading data,
-cleaning it in Excel, and rebuilding the same reports every week.
+An end-to-end retail analytics pipeline built to simulate a production FMCG data engineering workload. Raw transactional data is extracted from a REST API, landed in S3 as Hive-partitioned JSON, loaded into Snowflake via `COPY INTO`, transformed through a dbt medallion architecture (Bronze → Silver → Gold), and served to Power BI via a star schema — all orchestrated by Airflow running in Docker.
 
-This project is my answer to that problem. I wanted to build the kind
-of automated, reliable data pipeline that a real business would use —
-not a toy example, but something that handles the messy realities of
-production data: API failures, duplicate records, changing prices, and
-pipelines that need to run correctly every single time.
-
-Every decision in this project came from asking one question:
-"How would a real data team build this?"
+The dataset combines real API data with 50,000 rows of synthetic seed data to simulate realistic FMCG order volumes. A `data_source` column (`'real'` or `'synthetic'`) distinguishes the two throughout the pipeline.
 
 ---
 
-## What business questions does it answer?
+## Architecture
 
-Once the pipeline runs, a business analyst can immediately answer:
+```
+FakeStoreAPI → Python (requests + tenacity) → AWS S3 (Hive-partitioned JSON)
+     → Snowflake RAW (COPY INTO specific file) → dbt STAGING (table)
+     → dbt Snapshots (SCD Type 2) → dbt MARTS (views) → Power BI
+```
 
-- **Revenue** — How much did we sell this month vs last month?
-- **Products** — Which products are our top performers by revenue?
-- **Customers** — Who are our highest-value customers?
-- **Trends** — What does our seasonal demand pattern look like?
-- **Pricing** — How have product prices changed over time?
-
-These are the questions that drive real business decisions in retail
-and FMCG — inventory planning, pricing strategy, marketing spend,
-and customer retention.
-
----
-
-## How it works — in plain English
-
-The pipeline runs in six steps, fully automated:
-
-**Step 1 — Collect**
-Python code calls a retail API and pulls down product listings,
-customer profiles, and order data. If the API is slow or briefly
-unavailable, the pipeline automatically retries before giving up.
-
-**Step 2 — Store raw data**
-The raw data is saved to AWS S3 exactly as it came from the API —
-nothing changed, nothing deleted. Think of this as a safety net.
-If anything goes wrong downstream, the original data is always there.
-
-**Step 3 — Load into the warehouse**
-The raw files are loaded into Snowflake, our cloud data warehouse.
-Each pipeline run adds new data without overwriting what is already
-there — so we build up a complete history over time.
-
-**Step 4 — Clean and organise**
-dbt (a SQL transformation tool) takes the raw data and cleans it up —
-fixing data types, flattening nested fields, removing duplicates.
-The cleaned data sits in a separate layer so analysts always have a
-reliable, consistent version to work from.
-
-**Step 5 — Build the analytics layer**
-dbt builds the final analytics tables — a star schema with one central
-fact table surrounded by dimension tables for products, customers, and
-dates. This is the structure that makes Power BI fast and intuitive.
-
-**Step 6 — Track history**
-When a product price changes or a customer updates their address,
-the pipeline does not overwrite the old record. It keeps both versions
-with timestamps — so you can always answer "what was the price at
-the time of this order?" This is called SCD Type 2 and it is how
-professional data teams handle changing data.
+| Layer | Location | Strategy | Materialisation |
+|---|---|---|---|
+| **Bronze** | S3 + Snowflake RAW | Incremental append, never truncate | Raw tables |
+| **Silver** | Snowflake STAGING | Rebuilt on each dbt run | Table |
+| **Gold** | Snowflake MARTS | Always fresh, no storage cost | View |
 
 ---
 
-## The tech stack — and why each tool was chosen
+## Project Status
 
-| Tool | What it does | Why I chose it |
+| Phase | Description | Status |
 |---|---|---|
-| **Python** | Pulls data from the API | Industry standard for data pipelines |
-| **AWS S3** | Stores raw data files | Cheap, reliable, scales to any size |
-| **Snowflake** | Cloud data warehouse | Best-in-class performance for analytics |
-| **dbt** | Transforms and tests data | Version-controlled SQL with built-in testing |
-| **Airflow** | Schedules and monitors the pipeline | Standard orchestration tool at most data teams |
-| **Docker** | Packages Airflow for consistent local setup | Runs the same way on any machine |
-| **Power BI** | Business intelligence dashboards | Connects natively to Snowflake |
-| **GitHub Actions** | Runs automated tests on every code change | Catches bugs before they reach production |
+| 1 | Environment setup — Python, Snowflake, AWS, dbt | ✅ Complete |
+| 2 | Ingestion layer — API extract, S3 load, COPY INTO Snowflake | ✅ Complete |
+| 3 | pytest test suite — 15 tests across extract + load modules | ✅ Complete |
+| 4 | dbt models — staging, snapshots (SCD Type 2), star schema marts | ✅ Complete |
+| 5 | Airflow + Docker — 6-task DAG, XCom, containerised orchestration | 🔄 In progress |
+| 6 | CI/CD + README — GitHub Actions pytest on every push | ⬜ Next |
 
 ---
 
-## What makes this project stand out?
+## Repository Structure
 
-### It handles real-world data problems
-Raw data from APIs is messy — nested JSON structures, duplicate
-records across pipeline runs, fields that change over time. This
-pipeline handles all of that properly rather than ignoring it.
-
-### It is built for reliability
-If the pipeline runs twice on the same day it produces the same
-result — not double the data. Every run is tracked with a unique
-ID so anything that goes wrong can be traced back to its source.
-
-### It keeps history
-Most simple pipelines just overwrite data when something changes.
-This pipeline keeps a full history of every product price and
-customer detail change using industry-standard SCD Type 2 tracking.
-That history is what makes time-based analysis possible.
-
-### It is fully tested
-The ingestion layer has 15 automated tests that run on every code
-change. The data warehouse layer has 12 dbt tests that verify data
-quality directly in Snowflake. Both layers fail loudly if something
-is wrong — rather than silently producing bad data.
-
-### It is production-ready
-The same patterns used here — medallion architecture, incremental
-loading, environment-based configuration, structured logging,
-containerised orchestration — are used by data engineering teams
-at companies of all sizes.
-
----
-
-## The data model
-
-The final analytics layer is a star schema — the industry standard
-structure for business intelligence. It is designed so Power BI
-queries run fast and analysts can slice data any way they need.
 ```
-                 ┌───────────┐
-                 │ dim_date  │
-                 └─────┬─────┘
-                       │
-┌──────────────┐  ┌────┴──────────────┐  ┌─────────────┐
-│ dim_customer │  │ fact_order_items  │  │ dim_product │
-│              ├──┤                   ├──┤             │
-│ Who bought   │  │ What was ordered  │  │ What it was │
-│ Full history │  │ How much revenue  │  │ Price history│
-└──────────────┘  └───────────────────┘  └─────────────┘
+ecommerce-pipeline/
+├── ingestion/                       # Python ELT package
+│   ├── pipeline.py                  # Main entry point — run_pipeline()
+│   ├── api/
+│   │   ├── api_client.py            # HTTP client with tenacity retry
+│   │   └── extract.py               # FakeStoreExtractor class
+│   ├── storage/
+│   │   ├── db.py                    # Snowflake connection pool + S3 client
+│   │   ├── load.py                  # Writes JSON to S3
+│   │   └── copy_into_snowflake.py   # COPY INTO specific file per run
+│   └── core/
+│       ├── config.py                # Pydantic BaseSettings — env vars
+│       ├── logger.py                # colorlog setup
+│       └── utils.py                 # enrich_records, format_s3_key
+│
+├── tests/                           # pytest suite — 15 tests
+│   ├── conftest.py                  # Shared fixtures
+│   ├── test_extract.py              # 6 tests — API extraction
+│   └── test_load.py                 # 9 tests — S3 loading (moto)
+│
+├── dbt/                             # dbt project
+│   ├── models/
+│   │   ├── staging/                 # stg_products, stg_users, stg_carts
+│   │   └── marts/                   # fact_order_items, dim_customer, dim_product, dim_date
+│   ├── snapshots/                   # products_snapshot, customers_snapshot (SCD Type 2)
+│   ├── seeds/                       # fact_order_items_seed.csv — 50,000 synthetic rows
+│   └── macros/                      # generate_schema_name.sql
+│
+├── dags/
+│   └── ecommerce_pipeline_dag.py    # 6-task Airflow DAG with XCom
+│
+├── snowflake/                       # setup.sql, create_raw_tables.sql
+├── scripts/                         # generate_seed_data.py
+├── Dockerfile                       # Extends apache/airflow:2.8.1
+├── docker-compose.yml               # webserver + scheduler + postgres
+├── requirements.txt
+└── .github/workflows/
+    └── ci.yml                       # pytest on every push
 ```
 
-The fact table combines real order data from the API with 50,000
-rows of synthetic historical orders — giving Power BI two full years
-of data to visualise trends, seasonality, and growth patterns.
+---
+
+## Star Schema
+
+**Fact table:** `fact_order_items` — grain: one row per product line item per order
+
+| Table | Type | Key Design |
+|---|---|---|
+| `fact_order_items` | Fact | Surrogate key via `dbt_utils.generate_surrogate_key` |
+| `dim_customer` | SCD Type 2 | Current records: `dbt_valid_to IS NULL` |
+| `dim_product` | SCD Type 2 | Tracks price and rating changes over time |
+| `dim_date` | Date spine | 730 days from 2024-01-01, `date_key` as YYYYMMDD |
+| `fact_order_items_seed` | Seed | 50,000 synthetic rows, UNION ALL'd into the mart |
 
 ---
 
-## How to run it
+## Airflow DAG
 
-### You will need
-- Python 3.11 or higher
-- Docker Desktop
-- A Snowflake account (free trial works)
-- An AWS account with an S3 bucket
+6 tasks run daily in strict sequence:
 
-### Getting started
+```
+extract_and_load_s3 (Python)
+  → copy_to_snowflake (Python · XCom)
+  → dbt_snapshot (Bash)
+  → dbt_run_staging (Bash)
+  → dbt_run_marts (Bash)
+  → dbt_test (Bash)
+```
+
+`s3_keys` and `run_id` are passed from task 1 to task 2 via XCom. `catchup=False` — no backfill on first run.
+
+---
+
+## Quickstart
+
+**Prerequisites:** Python 3.11, Docker, a Snowflake account, an AWS account with S3 access.
+
 ```bash
-# clone the repo
-git clone https://github.com/phildinh/APIs-Retail-FMCG-AWS-Snowflake-dbt-Airflow-Docker.git
+# 1. Clone and set up environment
+git clone https://github.com/phildinh/APIs-Retail-FMCG-AWS-Snowflake-dbt-Airflow-Docker
 cd APIs-Retail-FMCG-AWS-Snowflake-dbt-Airflow-Docker
-
-# set up Python environment
-python -m venv venv
-.\venv\Scripts\activate
+python -m venv .venv && .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-pip install dbt-snowflake==1.7.2
 
-# add your credentials
-Copy-Item .env.example .env
-# open .env and fill in your Snowflake and AWS details
-```
+# 2. Configure credentials
+cp .env.example .env
+# Fill in your Snowflake, AWS, and FakeStoreAPI credentials
 
-### Run the pipeline once
-```bash
+# 3. Load env vars (PowerShell — run every new session)
+Get-Content .env | ForEach-Object {
+    if ($_ -match '^\s*([^#][^=]+)=(.*)$') {
+        [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim())
+    }
+}
+
+# 4. Run the ingestion pipeline
 python -m ingestion.pipeline
-```
 
-### Run the full transformation layer
-```bash
+# 5. Run dbt
 cd dbt
 dbt snapshot
 dbt run
 dbt test
-```
 
-### Run with Airflow on a schedule
-```bash
-docker-compose up -d
-# open http://localhost:8080
-# enable and trigger the ecommerce_pipeline DAG
-```
-
-### Run the test suite
-```bash
+# 6. Run tests
 pytest tests/ -v
+
+# 7. Spin up Airflow (Docker)
+docker-compose up airflow-init
+docker-compose up -d
+# Open http://localhost:8080
 ```
+
+> **Note:** `profiles.yml` is gitignored. Recreate it manually after cloning with your Snowflake credentials. Never commit credentials to the repo.
 
 ---
 
-## Project structure
-```
-ecommerce-pipeline/
-│
-├── ingestion/          ← pulls data from API and loads to S3 + Snowflake
-├── dbt/                ← cleans and models data in Snowflake
-├── dags/               ← Airflow schedule and task definitions
-├── tests/              ← automated test suite
-├── snowflake/          ← one-time setup scripts
-├── scripts/            ← utility scripts
-├── docs/               ← architecture diagram
-├── docker-compose.yml  ← local Airflow setup
-└── .github/            ← CI/CD pipeline
-```
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `SNOWFLAKE_ACCOUNT` | Your Snowflake account identifier |
+| `SNOWFLAKE_USER` | Your Snowflake username |
+| `SNOWFLAKE_PASSWORD` | Your Snowflake password |
+| `SNOWFLAKE_WAREHOUSE` | `ECOMMERCE_WH` |
+| `SNOWFLAKE_DATABASE` | `ECOMMERCE_DB` |
+| `SNOWFLAKE_ROLE` | `TRANSFORMER` |
+| `SNOWFLAKE_SCHEMA` | `RAW` |
+| `AWS_ACCESS_KEY_ID` | Your AWS access key |
+| `AWS_SECRET_ACCESS_KEY` | Your AWS secret key |
+| `AWS_REGION` | `ap-southeast-2` |
+| `AWS_BUCKET_NAME` | Your S3 bucket name |
+| `FAKESTORE_BASE_URL` | `https://fakestoreapi.com` |
+| `ENVIRONMENT` | `dev` |
+| `LOG_LEVEL` | `INFO` (use `DEBUG` for troubleshooting) |
 
 ---
 
-## What I learned
+## Tech Stack
 
-Building this project taught me that good data engineering is mostly
-about handling failure gracefully. The happy path — API works, data
-is clean, everything loads — is the easy part. The interesting
-engineering happens when you ask: what if the API is down? What if
-the same pipeline runs twice? What if a product price changes mid-month?
-
-Every one of those scenarios has a deliberate answer in this project.
-That is what I am most proud of.
-
-I also learned that the separation between collecting data, cleaning
-data, and serving data is not just a nice pattern — it is what makes
-a pipeline debuggable, testable, and maintainable over time. When
-something breaks, you know exactly which layer to look at.
+| Tool | Version | Role |
+|---|---|---|
+| Python | 3.11.9 | Ingestion pipeline, data enrichment, pytest |
+| AWS S3 | — | Bronze layer — Hive-partitioned raw JSON storage |
+| Snowflake | — | Data warehouse — RAW, STAGING, MARTS schemas |
+| dbt | 1.7.19 | Transformation, SCD Type 2 snapshots, data testing |
+| Airflow | 2.8.1 | Orchestration — daily DAG, XCom, task-level retries |
+| Docker | — | Containerised Airflow (webserver + scheduler + postgres) |
+| Power BI | — | Analytics layer via native Snowflake connector |
+| GitHub Actions | — | CI/CD — pytest on every push |
 
 ---
-[GitHub](https://github.com/phildinh) ·
-[LinkedIn](https://www.linkedin.com/in/phil-dinh)
+
+## Known Gotchas
+
+- `numpy` must be pinned to `<2` — the Snowflake connector breaks with numpy 2.x
+- SCD Type 2 current record filter is `dbt_valid_to IS NULL` — not `dbt_is_current`
+- `COPY INTO` targets a specific file path per run — not the whole S3 folder
+- RAW tables are incremental and append-only — never truncate them
+- dbt seeds land in STAGING by default — override schema in `dbt_project.yml` to route to MARTS
+- Load env vars into PowerShell every new session — they don't persist between terminal restarts
+
+---
+
+## Author
+
+**Phil Dinh** · Sydney, Australia  
+Data Engineer · FMCG & Retail Analytics background  
+[github.com/phildinh](https://github.com/phil-dinh)
