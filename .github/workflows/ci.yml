@@ -1,0 +1,47 @@
+name: CI Pipeline
+
+# Trigger on every push and pull request to any branch
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest       # GitHub spins up a fresh Ubuntu VM for every run
+
+    steps:
+      # Step 1: Check out your repo code onto the VM
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: Install Python 3.11 — matches your local dev version
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      # Step 3: Install your dependencies
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      # Step 4: Run your pytest suite
+      - name: Run tests
+        run: pytest tests/ -v
+
+        # Step 5: Set all required env vars for the test run
+        # These come from GitHub Secrets — never hardcoded
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+          SNOWFLAKE_SCHEMA: ${{ secrets.SNOWFLAKE_SCHEMA }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          FAKESTORE_BASE_URL: ${{ secrets.FAKESTORE_BASE_URL }}
+          ENVIRONMENT: test
+          LOG_LEVEL: INFO
