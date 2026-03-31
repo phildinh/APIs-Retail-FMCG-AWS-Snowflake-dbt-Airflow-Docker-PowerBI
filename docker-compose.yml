@@ -1,55 +1,49 @@
+version: '3.8'
+
+# Reusable config block — both airflow services share these settings
+x-airflow-common: &airflow-common
+  build: .                          # Build from your Dockerfile in this directory
+  env_file:
+    - .env                          # Load all your Snowflake + AWS creds from .env
+  environment:
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'   # Don't clutter UI with Airflow's example DAGs
+  volumes:
+    - ./dags:/opt/airflow/dags          # Your DAG files
+    - ./dbt:/opt/airflow/dbt            # dbt project (BashOperator runs dbt from here)
+    - ./ingestion:/opt/airflow/ingestion # Your Python ingestion package
+    - ./logs:/opt/airflow/logs          # Airflow task logs
+  depends_on:
+    postgres:
+      condition: service_healthy        # Don't start until postgres is ready
+
 services:
 
   postgres:
-    image: postgres:15
+    image: postgres:13
     environment:
-     POSTGRES_USER: airflow
-     POSTGRES_PASSWORD: airflow
-     POSTGRES_DB: airflow
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
       retries: 5
 
   airflow-init:
-    build: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-    command: >
-      bash -c "airflow db migrate &&
-               airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
-    volumes:
-      - ./dags:/app/dags
-      - ./.env:/app/.env
+    <<: *airflow-common                 # Inherit shared config
+    command: airflow db init            # Initialise Airflow's metadata tables (runs once)
+    restart: "no"                       # Run once and exit — not a long-running service
 
-  airflow:
-    build: .
-    depends_on:
-      postgres:
-        condition: service_healthy
-      airflow-init:
-        condition: service_completed_successfully
-    environment:
-      AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__DAGS_FOLDER: /app/dags
-    command: >
-      bash -c "airflow scheduler & airflow webserver --port 8080"
+  airflow-scheduler:
+    <<: *airflow-common
+    command: airflow scheduler
+    restart: always
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: airflow webserver
     ports:
-      - "8080:8080"
-    volumes:
-      - ./dags:/app/dags
-      - ./.env:/app/.env
-    env_file:
-      - .env
-
-volumes:
-  postgres_data:
+      - "8080:8080"                     # Expose UI to your browser
+    restart: always
