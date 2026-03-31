@@ -39,12 +39,12 @@ FakeStoreAPI → Python (requests + tenacity) → AWS S3 (Hive-partitioned JSON)
 
 | Phase | Description | Status |
 |---|---|---|
-| 1 | Environment setup — Python, Snowflake, AWS, dbt | ✅ Complete |
-| 2 | Ingestion layer — API extract, S3 load, COPY INTO Snowflake | ✅ Complete |
-| 3 | pytest test suite — 15 tests across extract + load modules | ✅ Complete |
-| 4 | dbt models — staging, snapshots (SCD Type 2), star schema marts | ✅ Complete |
-| 5 | Airflow + Docker — 6-task DAG, XCom, containerised orchestration | 🔄 In progress |
-| 6 | CI/CD + README — GitHub Actions pytest on every push | ⬜ Next |
+| 1 | Environment setup — Python, Snowflake, AWS, dbt | 
+| 2 | Ingestion layer — API extract, S3 load, COPY INTO Snowflake | 
+| 3 | pytest test suite — 15 tests across extract + load modules | 
+| 4 | dbt models — staging, snapshots (SCD Type 2), star schema marts | 
+| 5 | Airflow + Docker — 6-task DAG, XCom, containerised orchestration | 
+| 6 | CI/CD + README — GitHub Actions pytest on every push | 
 
 ---
 
