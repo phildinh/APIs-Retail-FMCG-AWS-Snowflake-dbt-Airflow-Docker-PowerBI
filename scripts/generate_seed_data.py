@@ -1,6 +1,7 @@
 import csv
 import random
 from datetime import datetime, timedelta
+from typing import Dict, List
 
 
 random.seed(42)
@@ -64,7 +65,7 @@ def random_date(start: datetime, end: datetime) -> datetime:
     return start + timedelta(days=random_days)
 
 
-def generate_rows(num_rows: int) -> list[dict]:
+def generate_rows(num_rows: int) -> List[Dict]:
     rows = []
     order_item_id = 1
     order_id = 1001
@@ -105,7 +106,7 @@ def generate_rows(num_rows: int) -> list[dict]:
     return rows[:num_rows]
 
 
-def write_csv(rows: list[dict], output_path: str) -> None:
+def write_csv(rows: List[Dict], output_path: str) -> None:
     fieldnames = [
         "order_item_id", "order_id", "user_id", "product_id",
         "quantity", "unit_price", "total_price", "order_date"
