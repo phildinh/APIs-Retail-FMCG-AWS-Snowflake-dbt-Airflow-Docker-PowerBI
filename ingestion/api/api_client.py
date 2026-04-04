@@ -1,4 +1,6 @@
 import requests
+from typing import List, Dict, Any
+
 from tenacity import (
     retry,
     stop_after_attempt,
@@ -25,7 +27,7 @@ class APIClient:
         retry =         retry_if_exception_type(requests.exceptions.ConnectionError),
         before_sleep =  before_sleep_log(logger, logging.WARNING),   
     )
-    def get(self, endpoint: str) -> list[dict]:
+    def get(self, endpoint: str) -> List[Dict]:
         url = f"{self.base_url}/{endpoint}"
         logger.info(f"Fetching {url}")
 

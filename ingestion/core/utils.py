@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import List, Dict, Any
 
 def get_utc_now() -> datetime:
     return datetime.now(timezone.utc)
@@ -18,9 +19,9 @@ def get_run_date() -> str:
 
 def enrich_records(
         entity: str,
-        data:   list[dict],
+        data:   list[Dict],
         run_id: str,
-) -> list[dict]:
+) -> list[Dict]:
     loaded_at = get_utc_now().isoformat()
     load_date = get_run_date()
 
