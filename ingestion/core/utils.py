@@ -19,9 +19,9 @@ def get_run_date() -> str:
 
 def enrich_records(
         entity: str,
-        data:   list[Dict],
+        data:   List[Dict],
         run_id: str,
-) -> list[Dict]:
+) -> List[Dict]:
     loaded_at = get_utc_now().isoformat()
     load_date = get_run_date()
 
