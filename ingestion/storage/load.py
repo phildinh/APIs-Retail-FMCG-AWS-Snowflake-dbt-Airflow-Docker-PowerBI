@@ -1,4 +1,5 @@
 import json
+from typing import List, Dict, Any
 from ingestion.storage.db import get_s3_client
 from ingestion.core.config import get_settings
 from ingestion.core.logger import get_logger
@@ -6,7 +7,7 @@ from ingestion.core.utils import format_s3_key
 
 logger = get_logger(__name__)
 
-def load_to_s3(entity: str, data: list[dict]) -> str:
+def load_to_s3(entity: str, data: List[Dict]) -> str:
     settings = get_settings()
     client = get_s3_client()
 
