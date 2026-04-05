@@ -1,11 +1,11 @@
 with snapshot as (
     select * from {{ ref('products_snapshot') }}
-    where dbt_valid_to is null
+    -- remove the filter — keep ALL versions, not just current
 ),
 
 final as (
     select
-        {{ dbt_utils.generate_surrogate_key(['product_id']) }}
+        {{ dbt_utils.generate_surrogate_key(['product_id', 'dbt_valid_from']) }}
                                         as product_key,
         product_id,
         product_name,

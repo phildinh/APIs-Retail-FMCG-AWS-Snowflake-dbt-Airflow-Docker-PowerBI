@@ -5,8 +5,8 @@ with source as (
 deduplicated as (
     select *,
         row_number() over (
-            partition by id, _run_id
-            order by _loaded_at desc
+            partition by id          -- only partition by id, not run_id
+            order by _loaded_at desc -- keep the most recent load
         ) as row_num
     from source
 ),

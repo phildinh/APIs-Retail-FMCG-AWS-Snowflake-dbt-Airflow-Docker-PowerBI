@@ -36,14 +36,23 @@ staging/stg_users.sql    → cleaned users, name/address VARIANT fields flattene
 staging/stg_carts.sql    → cleaned carts, products array exploded (one row per item)
 ```
 
-### Step 3 — models/marts/
-Read this third. This is the Gold layer.
-Takes staging models and builds business-ready dimension and fact tables
-optimised for reporting and analytics.
+### Step 3 — snapshots/
+Read this third. This is where SCD Type 2 history is captured.
+Snapshots sit between staging and marts — they read from staging models
+and record a new row every time a tracked column changes.
+```
+snapshots/products_snapshot.sql  → tracks price, category, rating changes over time
+snapshots/customers_snapshot.sql → tracks email, name, address, phone changes over time
+```
+
+### Step 4 — models/marts/
+Read this fourth. This is the Gold layer.
+Takes snapshots and staging models and builds business-ready dimension
+and fact tables optimised for reporting and analytics.
 ```
 marts/dim_date.sql         → standalone date spine, no upstream dependencies
-marts/dim_product.sql      → product dimension built from products_snapshot (SCD2)
-marts/dim_customer.sql     → customer dimension built from customers_snapshot (SCD2)
+marts/dim_product.sql      → full SCD2 product history from products_snapshot
+marts/dim_customer.sql     → full SCD2 customer history from customers_snapshot
 marts/fact_order_items.sql → central fact table joining all four above models
 ```
 
@@ -81,7 +90,10 @@ dbt/
 ├── seeds/                   ← Static CSV data loaded directly to Snowflake
 │   └── fact_order_items_seed.csv
 │
-├── snapshots/               ← SCD2 snapshots (placeholder — not yet implemented)
+├── snapshots/               ← SCD2 snapshots — capture history when data changes
+│   ├── products_snapshot.sql
+│   └── customers_snapshot.sql
+│
 ├── macros/                  ← Custom dbt macros (placeholder)
 ├── dbt_packages/            ← Installed packages (dbt_utils)
 └── logs/                    ← dbt execution logs (git-ignored)
@@ -98,10 +110,14 @@ Snowflake RAW (loaded by ingestion pipeline)
     │   ├── stg_users      → deduplicate + flatten name/address VARIANT
     │   └── stg_carts      → deduplicate + LATERAL FLATTEN products array
     │
-    └── 2. Marts (Gold) — dbt run --select marts.*
+    ├── 2. Snapshots (SCD2) — dbt snapshot
+    │   ├── products_snapshot  → new row written when price/category/rating changes
+    │   └── customers_snapshot → new row written when email/name/address/phone changes
+    │
+    └── 3. Marts (Gold) — dbt run --select marts.*
         ├── dim_date           → generated date spine (2024-01-01, 730 days)
-        ├── dim_product        → from products_snapshot (SCD2, current rows only)
-        ├── dim_customer       → from customers_snapshot (SCD2, current rows only)
+        ├── dim_product        → full SCD2 history from products_snapshot (all versions)
+        ├── dim_customer       → full SCD2 history from customers_snapshot (all versions)
         └── fact_order_items   → pipeline rows (stg_carts + dims)
                                  UNION ALL seed rows (fact_order_items_seed + dims)
 ```
@@ -180,28 +196,30 @@ The `date_key` format (e.g. `20260328`) is used as the join key in `fact_order_i
 ---
 
 ### marts/dim_product.sql
-**Source:** `{{ ref('products_snapshot') }}` — SCD2 snapshot (not yet implemented)
+**Source:** `{{ ref('products_snapshot') }}`
 **Output:** `MARTS.DIM_PRODUCT` (view)
 
-Filters the snapshot to current rows only (`WHERE dbt_valid_to IS NULL`),
-generates a surrogate key using `dbt_utils.generate_surrogate_key(['product_id'])`,
-and exposes SCD2 validity columns (`effective_from`, `effective_to`).
+Reads all rows from `products_snapshot` — no `WHERE dbt_valid_to IS NULL` filter,
+so every historical version of a product is included (full SCD2 history).
 
-**Note:** Depends on `snapshots/products_snapshot` which is not yet created.
-This model will fail until the snapshot is implemented.
+Surrogate key is generated from `(product_id, dbt_valid_from)` — not just
+`product_id` alone — because the same product now has multiple rows (one per
+version), and the key must be unique across all of them.
+
+Exposes `effective_from` and `effective_to` so downstream consumers can filter
+to whichever version was current at a given point in time.
 
 ---
 
 ### marts/dim_customer.sql
-**Source:** `{{ ref('customers_snapshot') }}` — SCD2 snapshot (not yet implemented)
+**Source:** `{{ ref('customers_snapshot') }}`
 **Output:** `MARTS.DIM_CUSTOMER` (view)
 
-Same pattern as dim_product. Filters to current rows, generates a surrogate
-key, concatenates `first_name || ' ' || last_name → full_name`, and exposes
-SCD2 validity columns.
+Same pattern as dim_product — keeps all historical versions, no current-row filter.
 
-**Note:** Depends on `snapshots/customers_snapshot` which is not yet created.
-This model will fail until the snapshot is implemented.
+Surrogate key generated from `(user_id, dbt_valid_from)`.
+Concatenates `first_name || ' ' || last_name → full_name`.
+Exposes `effective_from` and `effective_to` for point-in-time joins.
 
 ---
 
@@ -252,6 +270,51 @@ dbt seed --full-refresh                         # drop and recreate from scratch
 
 ---
 
+## Snapshots
+
+Snapshots implement SCD Type 2 — they detect when a row changes and write
+the old version with a closing timestamp (`dbt_valid_to`) before inserting
+the new version. This preserves full history rather than overwriting.
+
+dbt adds four columns automatically to every snapshot table:
+- `dbt_scd_id` — unique row identifier
+- `dbt_updated_at` — when this snapshot row was last updated
+- `dbt_valid_from` — when this version became active
+- `dbt_valid_to` — when this version was superseded (`null` = currently active)
+
+Both snapshots use `strategy='check'` — dbt compares the listed columns on
+every run and creates a new row only when at least one of them has changed.
+
+---
+
+### snapshots/products_snapshot.sql
+**Source:** `{{ ref('stg_products') }}`
+**Output:** `MARTS.PRODUCTS_SNAPSHOT` (snapshot table)
+
+Tracked columns: `price`, `category`, `rating_score`, `rating_count`
+
+If a product's price changes between pipeline runs, the snapshot will:
+1. Close the old row — set `dbt_valid_to` to the current timestamp
+2. Insert a new row — `dbt_valid_from` = now, `dbt_valid_to` = null
+
+`invalidate_hard_deletes=True` — if a product disappears from staging
+(i.e. was deleted from the source), its snapshot row is closed automatically.
+
+---
+
+### snapshots/customers_snapshot.sql
+**Source:** `{{ ref('stg_users') }}`
+**Output:** `MARTS.CUSTOMERS_SNAPSHOT` (snapshot table)
+
+Tracked columns: `email`, `first_name`, `last_name`, `city`, `street`, `zipcode`, `phone`
+
+Same behaviour as products_snapshot. If a customer updates their address
+or email, a new version row is written and the old one is closed.
+
+`invalidate_hard_deletes=True` — deleted customers are automatically closed.
+
+---
+
 ## Packages
 
 ### dbt_utils (v1.1.1)
@@ -288,23 +351,38 @@ dbt seed
 # run staging models only
 dbt run --select staging.*
 
+# run snapshots — must run AFTER staging, BEFORE marts
+dbt snapshot
+
 # run mart models only
 dbt run --select marts.*
 
-# run everything (seed must already be loaded)
-dbt run
+# run everything in correct order (seed must already be loaded)
+dbt run && dbt snapshot && dbt run --select marts.*
 
 # run data quality tests
 dbt test
 
-# run seed + models + tests in one command (recommended)
+# run seed + models + snapshots + tests in one command (recommended)
 dbt build
+```
+
+Expected output for `dbt snapshot`:
+```
+12:00:01  Running with dbt=1.x.x
+12:00:02  Found 7 models, 9 tests, 1 seed, 2 snapshots
+12:00:03  Concurrency: 4 threads (target='dev')
+12:00:04  1 of 2 START snapshot MARTS.products_snapshot .................. [RUN]
+12:00:06  1 of 2 OK snapshotted MARTS.products_snapshot .................. [SUCCESS]
+12:00:06  2 of 2 START snapshot MARTS.customers_snapshot ................. [RUN]
+12:00:07  2 of 2 OK snapshotted MARTS.customers_snapshot ................. [SUCCESS]
+12:00:07  Completed successfully
 ```
 
 Expected output for `dbt run`:
 ```
 12:00:01  Running with dbt=1.x.x
-12:00:02  Found 7 models, 9 tests, 1 seed, 0 snapshots
+12:00:02  Found 7 models, 9 tests, 1 seed, 2 snapshots
 12:00:03  Concurrency: 4 threads (target='dev')
 12:00:04  1 of 7 START sql table model STAGING.stg_products .............. [RUN]
 12:00:06  1 of 7 OK created sql table model STAGING.stg_products ......... [SUCCESS]
@@ -339,11 +417,14 @@ ECOMMERCE_DB
 │   ├── STG_USERS
 │   └── STG_CARTS
 │
-└── MARTS                      ← written by dbt mart models (views)
-    ├── DIM_DATE
-    ├── DIM_PRODUCT
-    ├── DIM_CUSTOMER
-    └── FACT_ORDER_ITEMS
+└── MARTS                      ← written by dbt snapshots + mart models
+    ├── PRODUCTS_SNAPSHOT      ← written by dbt snapshot (SCD2 history table)
+    ├── CUSTOMERS_SNAPSHOT     ← written by dbt snapshot (SCD2 history table)
+    ├── FACT_ORDER_ITEMS_SEED  ← written by dbt seed
+    ├── DIM_DATE               ← written by dbt run (view)
+    ├── DIM_PRODUCT            ← written by dbt run (view)
+    ├── DIM_CUSTOMER           ← written by dbt run (view)
+    └── FACT_ORDER_ITEMS       ← written by dbt run (view)
 ```
 
 ---
@@ -370,17 +451,24 @@ the array in SQL, giving each item its own row — this is the right place
 to do it because all downstream models expect the exploded grain.
 
 **Why use surrogate keys in the mart layer?**
-Natural keys (like `product_id` from the API) can change or collide over time,
-especially once SCD2 snapshots are added (where the same `product_id` has
-multiple historical rows). A surrogate key generated from `generate_surrogate_key`
-provides a stable, unique row identifier regardless of source key behaviour.
+Natural keys (like `product_id` from the API) are not unique across SCD2 history —
+the same `product_id` appears multiple times, once per version. A surrogate key
+built from `(product_id, dbt_valid_from)` or `(user_id, dbt_valid_from)` is
+unique per version row, making it safe to use as a primary key in the dimension
+and as a foreign key in the fact table.
 
-**Why do dim_product and dim_customer use snapshots?**
-Products and customers can change over time (price updates, address changes).
-A snapshot captures each version of a record as a separate row with
-`dbt_valid_from` and `dbt_valid_to` timestamps. This means `fact_order_items`
-can join against the version of a product that was current at the time of
-the order — not just the current price.
+**Why do dim_product and dim_customer keep ALL versions instead of current only?**
+Keeping all versions (`dbt_valid_to IS NULL` removed) allows `fact_order_items`
+to join against the exact version of a product or customer that was active at
+the time of the order. For example, if a product's price was $50 when an order
+was placed but is now $75, the fact table correctly records $50 — not the
+current price. This is the core value of SCD Type 2.
+
+**Why use `strategy='check'` instead of `strategy='timestamp'`?**
+The FakeStoreAPI does not return an `updated_at` timestamp on records.
+The `check` strategy compares specific column values on every run and creates
+a new snapshot row when any tracked column changes — no timestamp needed.
+The trade-off is a full column comparison on every `dbt snapshot` run.
 
 **Why does fact_order_items UNION ALL the seed instead of joining it?**
 The seed and the pipeline represent two independent sources of order data —
