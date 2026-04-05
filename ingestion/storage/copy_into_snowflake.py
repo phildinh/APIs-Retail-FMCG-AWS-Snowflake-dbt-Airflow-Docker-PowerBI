@@ -83,7 +83,7 @@ def build_copy_query(entity: str, s3_key: str) -> str:
                 {config['select']}
             FROM @ECOMMERCE_DB.RAW.raw_s3_stage/{entity}/{sub_path}
         )
-        FILE_FORMAT = (FORMAT_NAME = raw_json_format)
+        FILE_FORMAT = (FORMAT_NAME = ECOMMERCE_DB.RAW.raw_json_format)
         ON_ERROR = 'CONTINUE'
     """
 
