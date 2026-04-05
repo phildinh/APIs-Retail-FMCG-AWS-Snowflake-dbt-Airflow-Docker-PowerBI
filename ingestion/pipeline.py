@@ -10,7 +10,7 @@ from ingestion.core.config import get_settings
 logger = get_logger(__name__)
 
 
-def run_pipeline() -> None:
+def run_pipeline():
     run_id = str(uuid.uuid4())
     run_date = get_run_date()
     settings = get_settings()
@@ -47,6 +47,8 @@ def run_pipeline() -> None:
     logger.info("Pipeline complete — rows loaded to Snowflake:")
     for entity, count in copy_results.items():
         logger.info(f"  {entity}: {count} rows")
+
+    return s3_keys, run_id    # add this line
 
 
 if __name__ == "__main__":
