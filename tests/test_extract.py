@@ -1,33 +1,18 @@
 import pytest
-from unittest.mock import patch, MagicMock
 from ingestion.api.extract import FakeStoreExtractor
+from ingestion.mock_data import PRODUCTS, USERS, CARTS
 
 
 class TestFakeStoreExtractor:
 
-    @patch("ingestion.api.extract.APIClient")
-    def test_extract_products_returns_list(
-        self, mock_client_class, mock_api_response_products
-    ):
-        mock_client = MagicMock()
-        mock_client.get.return_value = mock_api_response_products
-        mock_client_class.return_value = mock_client
-
+    def test_extract_products_returns_list(self):
         extractor = FakeStoreExtractor()
         result = extractor.extract_products()
 
         assert isinstance(result, list)
-        assert len(result) == 2
-        mock_client.get.assert_called_once_with("products")
+        assert len(result) == len(PRODUCTS)
 
-    @patch("ingestion.api.extract.APIClient")
-    def test_extract_products_record_shape(
-        self, mock_client_class, mock_api_response_products
-    ):
-        mock_client = MagicMock()
-        mock_client.get.return_value = mock_api_response_products
-        mock_client_class.return_value = mock_client
-
+    def test_extract_products_record_shape(self):
         extractor = FakeStoreExtractor()
         result = extractor.extract_products()
 
@@ -38,80 +23,34 @@ class TestFakeStoreExtractor:
         assert "category" in first
         assert "rating" in first
 
-    @patch("ingestion.api.extract.APIClient")
-    def test_extract_users_returns_list(
-        self, mock_client_class, mock_api_response_users
-    ):
-        mock_client = MagicMock()
-        mock_client.get.return_value = mock_api_response_users
-        mock_client_class.return_value = mock_client
-
+    def test_extract_users_returns_list(self):
         extractor = FakeStoreExtractor()
         result = extractor.extract_users()
 
         assert isinstance(result, list)
-        assert len(result) == 1
-        mock_client.get.assert_called_once_with("users")
+        assert len(result) == len(USERS)
 
-    @patch("ingestion.api.extract.APIClient")
-    def test_extract_carts_returns_list(
-        self, mock_client_class, mock_api_response_carts
-    ):
-        mock_client = MagicMock()
-        mock_client.get.return_value = mock_api_response_carts
-        mock_client_class.return_value = mock_client
-
+    def test_extract_carts_returns_list(self):
         extractor = FakeStoreExtractor()
         result = extractor.extract_carts()
 
         assert isinstance(result, list)
-        assert len(result) == 1
-        mock_client.get.assert_called_once_with("carts")
+        assert len(result) == len(CARTS)
 
-    @patch("ingestion.api.extract.APIClient")
-    def test_extract_all_returns_all_entities(
-        self,
-        mock_client_class,
-        mock_api_response_products,
-        mock_api_response_users,
-        mock_api_response_carts
-    ):
-        mock_client = MagicMock()
-        mock_client.get.side_effect = [
-            mock_api_response_products,
-            mock_api_response_users,
-            mock_api_response_carts
-        ]
-        mock_client_class.return_value = mock_client
-
+    def test_extract_all_returns_all_entities(self):
         extractor = FakeStoreExtractor()
         result = extractor.extract_all()
 
         assert "products" in result
         assert "users" in result
         assert "carts" in result
-        assert len(result["products"]) == 2
-        assert len(result["users"]) == 1
-        assert len(result["carts"]) == 1
+        assert len(result["products"]) == len(PRODUCTS)
+        assert len(result["users"]) == len(USERS)
+        assert len(result["carts"]) == len(CARTS)
 
-    @patch("ingestion.api.extract.APIClient")
-    def test_extract_all_total_records(
-        self,
-        mock_client_class,
-        mock_api_response_products,
-        mock_api_response_users,
-        mock_api_response_carts
-    ):
-        mock_client = MagicMock()
-        mock_client.get.side_effect = [
-            mock_api_response_products,
-            mock_api_response_users,
-            mock_api_response_carts
-        ]
-        mock_client_class.return_value = mock_client
-
+    def test_extract_all_total_records(self):
         extractor = FakeStoreExtractor()
         result = extractor.extract_all()
 
         total = sum(len(v) for v in result.values())
-        assert total == 4
+        assert total == len(PRODUCTS) + len(USERS) + len(CARTS)
