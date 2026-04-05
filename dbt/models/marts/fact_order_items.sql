@@ -36,9 +36,13 @@ pipeline_orders as (
         null::varchar                       as run_id
     from carts c
     left join products p
-        on c.product_id = p.product_id
+        on  c.product_id = p.product_id
+        and c.cart_date >= p.effective_from
+        and (p.effective_to is null or c.cart_date < p.effective_to)
     left join customers cust
-        on c.user_id = cust.user_id
+        on  c.user_id = cust.user_id
+        and c.cart_date >= cust.effective_from
+        and (cust.effective_to is null or c.cart_date < cust.effective_to)
     left join dates d
         on to_number(to_char(c.cart_date::date, 'YYYYMMDD')) = d.date_key
 ),
@@ -61,9 +65,13 @@ seed_orders as (
         null::varchar                       as run_id
     from seed_data s
     left join products p
-        on s.product_id = p.product_id
+        on  s.product_id = p.product_id
+        and s.order_date >= p.effective_from
+        and (p.effective_to is null or s.order_date < p.effective_to)
     left join customers cust
-        on s.user_id = cust.user_id
+        on  s.user_id = cust.user_id
+        and s.order_date >= cust.effective_from
+        and (cust.effective_to is null or s.order_date < cust.effective_to)
     left join dates d
         on to_number(to_char(s.order_date::date, 'YYYYMMDD')) = d.date_key
 ),

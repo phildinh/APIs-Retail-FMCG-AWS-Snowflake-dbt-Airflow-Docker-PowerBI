@@ -1,11 +1,11 @@
 with snapshot as (
     select * from {{ ref('customers_snapshot') }}
-    where dbt_valid_to is null
+    -- remove the filter — keep ALL versions, not just current
 ),
 
 final as (
     select
-        {{ dbt_utils.generate_surrogate_key(['user_id']) }}
+        {{ dbt_utils.generate_surrogate_key(['user_id', 'dbt_valid_from']) }}
                                         as customer_key,
         user_id,
         first_name,
