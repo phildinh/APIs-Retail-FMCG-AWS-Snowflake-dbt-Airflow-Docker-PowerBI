@@ -60,6 +60,10 @@ Shared helper functions with no external dependencies.
 Provides consistent date/time handling and S3 key formatting
 used across the ingestion layer. All timestamps are UTC.
 
+Imports `List`, `Dict`, `Any` from `typing` for Python 3.8
+compatibility — these are equivalent to `list[...]` and `dict[...]`
+which only work in Python 3.9+.
+
 Functions:
 - `get_utc_now()`  → current datetime in UTC
 - `get_run_date()` → today's date as YYYY-MM-DD string
@@ -70,12 +74,12 @@ Functions:
   - `_entity`     — which endpoint the record came from
   - `_load_date`  — date portion of the run
   - `_run_id`     — unique ID tying all records from one run together
-  
+
 S3 key format:
     raw/{entity}/year={yyyy}/month={mm}/day={dd}/{entity}_{timestamp}.json
 
 Example:
-    raw/products/year=2024/month=01/day=15/products_20240115_113200.json
+    raw/products/year=2026/month=03/day=29/products_20260329_113200.json
 
 The year/month/day partition structure follows Hive partitioning
 convention, making the data compatible with Athena and Snowflake
