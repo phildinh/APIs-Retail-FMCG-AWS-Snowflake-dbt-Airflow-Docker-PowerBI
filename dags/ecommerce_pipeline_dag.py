@@ -68,18 +68,18 @@ with DAG(
     # env vars (Snowflake creds) are already in the container from .env via docker-compose
 
     task3 = BashOperator(
+        task_id='dbt_run_staging',
+        bash_command='cd /opt/airflow/dbt && dbt run --select staging.*',
+    )
+
+    task4 = BashOperator(
         task_id='dbt_snapshot',
         bash_command='cd /opt/airflow/dbt && dbt snapshot',
     )
 
-    task4 = BashOperator(
-        task_id='dbt_run_staging',
-        bash_command='cd /opt/airflow/dbt && dbt run --select staging',
-    )
-
     task5 = BashOperator(
         task_id='dbt_run_marts',
-        bash_command='cd /opt/airflow/dbt && dbt run --select marts',
+        bash_command='cd /opt/airflow/dbt && dbt run --select marts.*',
     )
 
     task6 = BashOperator(
@@ -88,4 +88,5 @@ with DAG(
     )
 
     # ── Wire the tasks together ───────────────────────────────────────────────
+    # staging must run before snapshot — snapshots read from stg_products and stg_users
     task1 >> task2 >> task3 >> task4 >> task5 >> task6

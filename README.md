@@ -1,6 +1,6 @@
 # Retail FMCG Data Pipeline
 
-**Production-grade ELT pipeline built end-to-end — from REST API to star schema analytics, fully orchestrated and tested.**
+**Production-grade ELT pipeline built end-to-end — from REST API to star schema analytics, fully orchestrated, tested, and validated.**
 
 ![Python](https://img.shields.io/badge/Python-3.11-blue)
 ![Snowflake](https://img.shields.io/badge/Snowflake-Data_Warehouse-29B5E8)
@@ -20,6 +20,22 @@
 
 **GitHub Actions CI — All checks passing on every push**
 ![CI Pipeline Success](docs/github_ci_success.png)
+
+---
+
+## SCD Type 2 — Validated End to End
+
+SCD Type 2 tracks historical changes to dimension records. When a product price or customer detail changes, the pipeline preserves the old version with a closing timestamp and inserts a new current record — so analysts can always join to the data that was true at the time of each order.
+
+**Before — single current record**
+![SCD Before Product](docs/scd_before_product.png)
+![SCD Before Customer](docs/scd_before_customer.png)
+
+**After — historical record preserved, new current record created**
+![SCD After Product](docs/scd_after_product.png)
+![SCD After Customer](docs/scd_after_customer.png)
+
+Each version gets a unique surrogate key. The old record has `effective_to` filled in. The new record has `effective_to = null` — that's how the pipeline knows it's current.
 
 ---
 
@@ -77,10 +93,19 @@ Tasks 1 and 2 use `PythonOperator` because runtime values (`s3_keys`, `run_id`) 
 | Table | Type | Notes |
 |---|---|---|
 | `fact_order_items` | Fact | Surrogate key via `dbt_utils.generate_surrogate_key` |
-| `dim_customer` | SCD Type 2 | Current records: `dbt_valid_to IS NULL` |
-| `dim_product` | SCD Type 2 | Tracks price and rating changes over time |
+| `dim_customer` | SCD Type 2 | Current records: `dbt_valid_to IS NULL` · surrogate key includes `dbt_valid_from` |
+| `dim_product` | SCD Type 2 | Tracks price and rating changes · surrogate key includes `dbt_valid_from` |
 | `dim_date` | Date spine | 730 days from 2024-01-01 · `date_key` as YYYYMMDD |
 | `fact_order_items_seed` | Seed | 50,000 synthetic rows UNION ALL'd into the mart |
+
+`fact_order_items` joins to the dimension version that was active at the time of the order using date-range logic:
+
+```sql
+left join products p
+    on  c.product_id = p.product_id
+    and c.cart_date >= p.effective_from
+    and (p.effective_to is null or c.cart_date < p.effective_to)
+```
 
 ---
 
@@ -132,7 +157,7 @@ ecommerce-pipeline/
 ├── dags/
 │   └── ecommerce_pipeline_dag.py    # 6-task Airflow DAG with XCom
 │
-├── docs/                            # Screenshots and architecture assets
+├── docs/                            # Pipeline screenshots and SCD Type 2 proof
 ├── snowflake/                       # setup.sql, create_raw_tables.sql
 ├── scripts/                         # generate_seed_data.py
 ├── Dockerfile                       # Extends apache/airflow:2.8.1
@@ -224,17 +249,18 @@ docker-compose up -d
 
 - `numpy` must be pinned to `<2` — Snowflake connector breaks with numpy 2.x
 - SCD Type 2 current record filter is `dbt_valid_to IS NULL` — not `dbt_is_current`
+- Surrogate keys in SCD Type 2 dims must include `dbt_valid_from` — not just the natural key
 - `COPY INTO` targets a specific file path per run — not the whole S3 folder
 - RAW tables are incremental and append-only — never truncate them
+- Staging deduplication must partition by natural key only — not `natural_key + run_id`
+- Snowflake stage and file format must be fully qualified in COPY INTO queries
 - dbt seeds land in STAGING by default — override schema in `dbt_project.yml` to route to MARTS
-- Snowflake stage and file format must be fully qualified in COPY INTO queries (`ECOMMERCE_DB.RAW.raw_s3_stage`)
-- Load env vars into PowerShell every new session — they don't persist between terminal restarts
 - `profiles.yml` is gitignored — recreate manually on each machine after cloning
+- Load env vars into PowerShell every new session — they don't persist between restarts
 
 ---
 
 ## Author
 
-**Phil Dinh** · Sydney, Australia  
-Data Engineer · FMCG & Retail Analytics background  
+**Phil Dinh** · Sydney, Australia
 [github.com/phildinh](https://github.com/phildinh)

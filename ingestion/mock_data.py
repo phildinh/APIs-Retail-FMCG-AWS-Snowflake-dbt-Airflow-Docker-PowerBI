@@ -1,5 +1,5 @@
 PRODUCTS = [
-    {"id": 1, "title": "Fjallraven Backpack", "price": 109.95, "description": "Your perfect pack for everyday use", "category": "men's clothing", "image": "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_.jpg", "rating": {"rate": 3.9, "count": 120}},
+    {"id": 1, "title": "Fjallraven Backpack", "price": 200.95, "description": "Your perfect pack for everyday use", "category": "men's clothing", "image": "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_.jpg", "rating": {"rate": 3.9, "count": 120}},
     {"id": 2, "title": "Mens Casual T-Shirt", "price": 22.3, "description": "Slim-fitting style", "category": "men's clothing", "image": "https://fakestoreapi.com/img/71-3HjGNDUL._AC_SY879._SX._UX._SY._UY_.jpg", "rating": {"rate": 4.1, "count": 259}},
     {"id": 3, "title": "Mens Cotton Jacket", "price": 55.99, "description": "Great outerwear jacket", "category": "men's clothing", "image": "https://fakestoreapi.com/img/71li-ujtlUL._AC_UX679_.jpg", "rating": {"rate": 4.7, "count": 500}},
     {"id": 4, "title": "Mens Casual Slim Fit", "price": 15.99, "description": "The color could be slightly different", "category": "men's clothing", "image": "https://fakestoreapi.com/img/71YXzeOuslL._AC_UY879_.jpg", "rating": {"rate": 2.1, "count": 430}},
@@ -22,7 +22,7 @@ PRODUCTS = [
 ]
 
 USERS = [
-    {"id": 1, "email": "john@gmail.com", "username": "johnd", "password": "m38rmF$", "name": {"firstname": "John", "lastname": "Doe"}, "address": {"city": "kilcoole", "street": "7835 new road", "number": 3, "zipcode": "12926-3874", "geolocation": {"lat": "-37.3159", "long": "81.1496"}}, "phone": "1-570-236-7033"},
+    {"id": 1, "email": "john@gmail.com", "username": "johnd", "password": "m38rmF$", "name": {"firstname": "John", "lastname": "Doe"}, "address": {"city": "Sydney", "street": "7835 new road", "number": 3, "zipcode": "12926-3874", "geolocation": {"lat": "-37.3159", "long": "81.1496"}}, "phone": "1-570-236-7033"},
     {"id": 2, "email": "morrison@gmail.com", "username": "mor_2314", "password": "83r5^_", "name": {"firstname": "David", "lastname": "Morrison"}, "address": {"city": "Killarneyville", "street": "7327 stop n shop ave.", "number": 7, "zipcode": "12643-1340", "geolocation": {"lat": "-37.3159", "long": "81.1496"}}, "phone": "1-570-236-7033"},
     {"id": 3, "email": "kevin@gmail.com", "username": "kevinryan", "password": "kev02937@", "name": {"firstname": "Kevin", "lastname": "Ryan"}, "address": {"city": "Cullsport", "street": "124 main Street", "number": 46, "zipcode": "12926-3874", "geolocation": {"lat": "-37.3159", "long": "81.1496"}}, "phone": "1-570-236-7033"},
     {"id": 4, "email": "don@gmail.com", "username": "donero", "password": "ewedon", "name": {"firstname": "Don", "lastname": "Romer"}, "address": {"city": "Killarneyville", "street": "7327 stop n shop ave.", "number": 7, "zipcode": "12643-1340", "geolocation": {"lat": "-37.3159", "long": "81.1496"}}, "phone": "1-570-236-7033"},

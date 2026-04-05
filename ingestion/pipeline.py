@@ -37,19 +37,12 @@ def run_pipeline():
     for entity, key in s3_keys.items():
         logger.info(f"  {entity}: s3://{settings.aws_bucket_name}/{key}")
 
-    # task 2 — copy from S3 to Snowflake RAW
-    logger.info("Starting Snowflake ingestion")
-    copy_results = copy_raw_to_snowflake(
-        s3_keys=s3_keys,
-        run_id=run_id
-    )
-
-    logger.info("Pipeline complete — rows loaded to Snowflake:")
-    for entity, count in copy_results.items():
-        logger.info(f"  {entity}: {count} rows")
-
-    return s3_keys, run_id    # add this line
+    return s3_keys, run_id
 
 
 if __name__ == "__main__":
-    run_pipeline()
+    s3_keys, run_id = run_pipeline()
+    copy_results = copy_raw_to_snowflake(s3_keys=s3_keys, run_id=run_id)
+    logger.info("Pipeline complete — rows loaded to Snowflake:")
+    for entity, count in copy_results.items():
+        logger.info(f"  {entity}: {count} rows")
