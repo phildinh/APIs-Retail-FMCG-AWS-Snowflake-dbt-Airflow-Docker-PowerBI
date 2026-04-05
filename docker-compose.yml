@@ -33,7 +33,9 @@ services:
 
   airflow-init:
     <<: *airflow-common                 # Inherit shared config
-    command: airflow db init            # Initialise Airflow's metadata tables (runs once)
+    command: >
+      bash -c "airflow db migrate &&
+               airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com"
     restart: "no"                       # Run once and exit — not a long-running service
 
   airflow-scheduler:
